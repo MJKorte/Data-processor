@@ -6,10 +6,6 @@ import random
 #Read excel file
 df = pd.read_excel(r'data/input/Master_TMA_analyses.xlsx', sheet_name='Overig')
 df = df.drop_duplicates(subset=['Patient_nr'])
-df = df.loc[df['DFS_status_01'] != 2]
-df = df.loc[df['DFS_status_01'] != 9]
-df = df.loc[df['OS_status_01'] != 2]
-df = df.loc[df['OS_status_01'] != 9]
 tumor_size = df['Tumorsize']
 l = []
 
@@ -134,8 +130,8 @@ for column in df:
     if column == 'OS_status_01':
         os_column = []
         for status in df[column]:
-            if np.isnan(status):
-                os_column.append(status)
+            if np.isnan(status) == True or int(status) != 0 and int(status) != 1:
+                os_column.append('')
             elif int(status) == 0:
                 os_column.append('0:LIVING')
             elif int(status) == 1:
@@ -149,16 +145,15 @@ for column in df:
     if column == 'DFS_status_01':
         dfs_column = []
         for status in df[column]:
-            if np.isnan(status):
-                dfs_column.append(status)
+            if np.isnan(status) == True or int(status) != 0 and int(status) != 1:
+                dfs_column.append('')
             elif int(status) == 0:
                 dfs_column.append('0:DiseaseFree')
             elif int(status) == 1:
                 dfs_column.append('1:Recurred/Progressed')
             else:
                 dfs_column.append(status)
-        #print(len(df.index))
-        #print(len(os_column))
+        
         if(len(df.index)==len(dfs_column)):
             df[column] = dfs_column
             df = df.rename(columns={'DFS_status_01':'DFS_STATUS'})
@@ -166,6 +161,19 @@ for column in df:
     if column == 'OS_months' or column == 'DFS_months':
         df = df.rename(columns={column:column.upper()})
     df = df.rename(columns={column:column.upper()})
+
+    list_01 = ["RT", "HT", "CT", "IT"]
+    if column in list_01:
+        valuelist = df[column].tolist()
+        c = 0
+        for v_01 in valuelist:
+            if np.isnan(v_01) == True or int(v_01) != 0 and int(v_01) != 1:
+                print("yes")
+                valuelist[c] = ''
+            else :
+                valuelist[c] = int(v_01)
+            c += 1
+        df[column] = valuelist
 
 
 df = df.rename(columns={"RT":"RADIO_THERAPY", "HT":"HORMONE_THERAPY", "IT":"IMMUNO_THERAPY", "CT": "CHEMO_THERAPY"})
