@@ -127,13 +127,6 @@ else:
     print("Variable annotation incomplete, please completely annotate the variables")
     exit()
 
-#tumor_size = df['Tumorsize']
-#l = []
-
-#for x in tumor_size:
-#    l.append(str(x).replace(',','.'))
-#df['Tumorsize'] = l
-
 
 # Open metadata and data files
 meta_study= open("/home/onco/mdekorte/Documents/Cbioportal_clean/cbioportal/test_study/MMC_test/meta_study.txt", "w+")
@@ -247,9 +240,7 @@ for spv in df_annotated_variables['Sample/patient']:
         sample_vlist.append(df.columns.values[counter])
     counter += 1
 
-print(df)
-print(df_annotated_variables)
-print(sample_vlist)
+#write data to file
 write_data(df, df_annotated_variables, patient_vlist, data_clinical, ispatient=True)
 write_data(df, df_annotated_variables, sample_vlist, data_clinical_sample, ispatient=False)
 
