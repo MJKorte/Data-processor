@@ -1,14 +1,102 @@
+import sys, getopt
 import pandas as pd
 import numpy as np
 import io
 import random
 
+
+
+#define functions
+def write_annotation(df, variables_amount):
+    data_string = ''
+    for column in df.columns.values:
+        data_string += '#'
+        c = 0
+        for variable in df[column]:
+            c+=1
+            if variables_amount != c:
+                data_string += str(variable) + '\t'
+            else:
+                data_string += str(variable) + '\n'
+    return data_string
+
+def write_data(df, df_annotation, variable_list, file, ispatient):
+    df_annotated_split = df_annotation.loc[df_annotation['Variables'].isin(variable_list)]
+    df_annotated_split = df_annotated_split.drop(['Variables', "Sample/patient", "Yes/No"], axis = 1)
+
+    if ispatient:
+        new_row = []
+        new_row.insert(0, {'Variable name cBioportal':'Patient identifier', 'Variable description': 'Patient identifier', 'Data type': 'STRING', 'Priority': 1})
+    else:
+        new_row = []
+        new_row.insert(0,{'Variable name cBioportal':'Sample identifier', 'Variable description': 'Sample identifier', 'Data type': 'STRING', 'Priority': 1})
+        new_row.insert(1, {'Variable name cBioportal':'Patient identifier', 'Variable description': 'Patient identifier', 'Data type': 'STRING', 'Priority': 1})
+        
+    df_annotated_split = pd.concat([pd.DataFrame(new_row), df_annotated_split], ignore_index=True)
+
+
+    amount_of_variables = len(df_annotated_split.index)
+    clinical_string = write_annotation(df_annotated_split, amount_of_variables)
+    file.write(clinical_string)
+
+    split_df = df[df.columns[df.columns.isin(variable_list)]]
+
+    if ispatient:
+        split_df = split_df.drop_duplicates(subset=['PATIENT_ID'])
+    else:
+        print(sample_id_list)
+        print(split_df)
+        split_df.insert(loc = 0, column = 'SAMPLE_ID', value = sample_id_list)
+
+    data_string = io.StringIO()
+    split_df.to_csv(data_string, sep='\t', index=False, na_rep= "")
+    
+    file.write(data_string.getvalue())
+
+def reformat_logical(df, column, c_values, r_values):
+    valuelist = df[column].tolist()
+    c = 0
+    for v_01 in valuelist:
+        try:
+            if pd.isnull(v_01) == True or int(v_01) != int(c_values[0]) and int(v_01) != int(c_values[1]):
+                valuelist[c] = ''
+            elif int(v_01) == int(c_values[0]):
+                valuelist[c] = str(int(v_01)).replace(c_values[0], r_values[0])
+            elif int(v_01) == int(c_values[1]):
+                valuelist[c] = str(int(v_01)).replace(c_values[1], r_values[1])
+        except ValueError:
+            valuelist[c] = ''
+        c += 1
+    print(len(valuelist))
+    df[column] = valuelist
+    return df
+
+#get command line arguments
+arguments = sys.argv
+#arguments = ['XD', '-i', 'overview 263-4-01 - final.xlsx', '-s', 'Sheet3']
+try:
+    if arguments[1] == '-i':
+        inputfile = arguments[2]
+    if arguments[3] == '-s':
+        sheetname = arguments[4]
+except IndexError:
+    print('There seems to be something wrong with your input arguments, format:')
+    print("""generate_metadata.py -i '<inputfile>' -s '<sheetname>'""")
+    exit()
+
+input_path = 'data/input/' + inputfile
+
 #Read excel file
-df = pd.read_excel(r'data/input/Master_TMA_analyses.xlsx', sheet_name='The Mamma Database 2000-2013 FI')
-df = pd.read_excel(r'data/input/Master_TMA_analyses.xlsx', sheet_name='')
+try:
+    df = pd.read_excel(input_path, sheet_name=sheetname)
+except (FileNotFoundError, FileExistsError) as e:
+    print('Something went wrong reading the input files.')
+    print('Please make sure the file and sheet name are correct and the file is placed inside the input folder.')
+    exit()
+
 #Create annotation sheet
 variables = df.columns
-df_annotation = pd.DataFrame(columns = ['Variables', 'Variable name cBioportal', 'Variable description', 'Data type', 'Priority', 'Sample/patient'])
+df_annotation = pd.DataFrame(columns = ['Variables', 'Variable name cBioportal', 'Variable description', 'Data type', 'Priority', 'Sample/patient', 'Yes/No'])
 df_meta = pd.DataFrame(columns = ['Variable', 'Description'])
 df_meta['Variable'] = ['type of cancer:','cancer study identifier:', 'name:', 'short name:', 'description:','add global case list:', 'group:']
 df_meta['Description'] = ['','','','','', 'true', 'PUBLIC']
@@ -39,12 +127,13 @@ else:
     print("Variable annotation incomplete, please completely annotate the variables")
     exit()
 
-tumor_size = df['Tumorsize']
-l = []
-for x in tumor_size:
-    l.append(str(x).replace(',','.'))
-df['Tumorsize'] = l
-#df = df[pd.to_numeric(df.Tumorsize, errors='coerce').notnull()]
+#tumor_size = df['Tumorsize']
+#l = []
+
+#for x in tumor_size:
+#    l.append(str(x).replace(',','.'))
+#df['Tumorsize'] = l
+
 
 # Open metadata and data files
 meta_study= open("/home/onco/mdekorte/Documents/Cbioportal_clean/cbioportal/test_study/MMC_test/meta_study.txt", "w+")
@@ -66,8 +155,7 @@ description: %s
 add_global_case_list: %s
 groups: %s""" % (meta_study_list[0], meta_study_list[1], meta_study_list[2], meta_study_list[3], meta_study_list[4], meta_study_list[5], meta_study_list[6]))
 
-
-
+# Write patient meta file
 meta_clinical_patient.write(
     """cancer_study_identifier: %s
 genetic_alteration_type: CLINICAL
@@ -75,6 +163,7 @@ datatype: PATIENT_ATTRIBUTES
 data_filename: data_clinical_patient.txt""" % (meta_study_list[1])
 )
 
+#Write sample meta file
 meta_clinical_sample.write(
 """cancer_study_identifier: %s
 genetic_alteration_type: CLINICAL
@@ -91,23 +180,31 @@ data_filename: cancer_type.txt""")
 
 
 sample_id_names = []
+list_01 = []
 for index in range(len(df_annotated_variables['Variables'])):
-    value = df_annotated_variables['Variables'][index]
-    if '*' in value:
-        patient_id_name = value.replace('*', '')
+    value_v = df_annotated_variables['Variables'][index]
+    value_yn = df_annotated_variables['Yes/No'][index]
+    
+    if '*' in value_v:
+        patient_id_name = value_v.replace('*', '')
         df_annotated_variables['Variables'][index] = patient_id_name
-        value = patient_id_name
-    if '#' in value:
-        sample_id_name = value.replace('#', '')
+        value_v = patient_id_name
+    if '#' in value_v:
+        sample_id_name = value_v.replace('#', '')
         sample_id_names.append(sample_id_name)
         df_annotated_variables['Variables'][index] = sample_id_name
+    if value_yn == True:
+        list_01.append(value_v)
 
 patient_id_name = patient_id_name.replace('#', '')
 df.columns = [cname.upper() for cname in df.columns]
-df= df[list(df_annotated_variables['Variables'])]
+print(df.columns.values)
+print(df_annotated_variables['Variables'])
+df.columns = list(df_annotated_variables['Variables'])
 
 sample_id_list = []
 sample_id_generated = False
+
 for column in df:
     # filter on patient number and randomise the patient numbers
     if column in sample_id_names and sample_id_generated == False:
@@ -115,7 +212,8 @@ for column in df:
             for i in range(len(df[column])):
                 sample_id = str(list(df[sample_id_names[0]])[i]) + "-" + str(list(df[sample_id_names[1]])[i]).replace(' ', '_').replace(',','').replace('(', '').replace(')','')
                 sample_id_list.append(sample_id)
-
+        elif len(sample_id_names) == 1:
+            sample_id_list = [sample_name.replace(' ', '_').replace(',','').replace('(', '').replace(')','') for sample_name in df[column].tolist()]
         if len(sample_id_list) == len(df.index):
             sample_id_generated = True
 
@@ -124,72 +222,19 @@ for column in df:
         df = df.rename(columns={patient_id_name:'PATIENT_ID'})
     
     # transform values to male/female
-    if column == "SEX_M1_F2":
-        ncolumn=[]
-        for sex in df[column]:
-            if int(sex) ==1:
-                ncolumn.append("Male")
-            if int(sex) ==2:
-                ncolumn.append("Female")
-            if(len(df.index)==len(ncolumn)):
-                df[column] = ncolumn
-                df = df.rename(columns={'SEX_M1_F2':'SEX'})
+    if column == "SEX":
+        df = reformat_logical(df, column, c_values = ['1', '2'], r_values = ['Male', 'Female'])
 
-    # rename column
-    if column == 'AGE':
-        df = df.rename(columns={column:'AGE'})
-    
+    if column == 'OS_STATUS':
+        df = reformat_logical(df, column, c_values = ['0', '1'], r_values = ['0:LIVING', '1:DECEASED'])
 
+    if column == 'DFS_STATUS':
+        df = reformat_logical(df, column, c_values = ['0', '1'], r_values = ['0:DiseaseFree', '1:Recurred/Progressed'])
 
-    if column == 'OS_STATUS_01':
-        os_column = []
-        for status in df[column]:
-            if np.isnan(status) == True or int(status) != 0 and int(status) != 1:
-                os_column.append('')
-            elif int(status) == 0:
-                os_column.append('0:LIVING')
-            elif int(status) == 1:
-                os_column.append('1:DECEASED')
-            else:
-                os_column.append(status)
-        if(len(df.index)==len(os_column)):
-            df[column] = os_column
-            df = df.rename(columns={'OS_STATUS_01':'OS_STATUS'})
-
-    if column == 'DFS_STATUS_01':
-        dfs_column = []
-        for status in df[column]:
-            if np.isnan(status) == True or int(status) != 0 and int(status) != 1:
-                dfs_column.append('')
-            elif int(status) == 0:
-                dfs_column.append('0:DiseaseFree')
-            elif int(status) == 1:
-                dfs_column.append('1:Recurred/Progressed')
-            else:
-                dfs_column.append(status)
-        
-        if(len(df.index)==len(dfs_column)):
-            df[column] = dfs_column
-            df = df.rename(columns={'DFS_STATUS_01':'DFS_STATUS'})
-
-    list_01 = ["RT", "HT", "CT", "IT", "ER", "PR", "HER2stat_01", "SynchrBreastTumors_01", "SynchrTumorType_01", "SynchrBilateral_01", "AsynchrBreastTumors_01", "AsynchrBilateral_01", "AsynchrInSitu_01"]
     if column in list_01:
-        valuelist = df[column].tolist()
-        c = 0
-        for v_01 in valuelist:
-            if np.isnan(v_01) == True or int(v_01) != 0 and int(v_01) != 1:
-                valuelist[c] = ''
-            elif int(v_01)==0:
-                valuelist[c] = str(int(v_01)).replace('0', 'No')
-            elif int(v_01)==1:
-                valuelist[c] = str(int(v_01)).replace('1', 'Yes')
-            c += 1
-        df[column] = valuelist
-
+        df = reformat_logical(df, column, c_values = ['0', '1'], r_values = ['No', 'Yes'])
 
 df = df.round(decimals=2)
-replacements = {'SEX_M1_F2':'SEX', 'OS_STATUS_01': 'OS_STATUS', 'DFS_STATUS_01': 'DFS_STATUS'}
-df_annotated_variables['Variables'] = [replacements.get(n, n) for n in df_annotated_variables['Variables']]
 
 patient_vlist = []
 sample_vlist = []
@@ -202,69 +247,13 @@ for spv in df_annotated_variables['Sample/patient']:
         sample_vlist.append(df.columns.values[counter])
     counter += 1
 
+print(df)
+print(df_annotated_variables)
+print(sample_vlist)
+write_data(df, df_annotated_variables, patient_vlist, data_clinical, ispatient=True)
+write_data(df, df_annotated_variables, sample_vlist, data_clinical_sample, ispatient=False)
 
-df_annotated_samples = df_annotated_variables.loc[df_annotated_variables['Variables'].isin(sample_vlist)]
-df_annotated_samples = df_annotated_samples.drop(['Variables', "Sample/patient"], axis = 1)
-df_annotated_patients = df_annotated_variables.loc[df_annotated_variables['Variables'].isin(patient_vlist)]
-df_annotated_patients = df_annotated_patients.drop(['Variables', "Sample/patient"], axis = 1)
-
-new_sample_row = []
-
-new_sample_row.insert(0,{'Variable name cBioportal':'Sample identifier', 'Variable description': 'Sample identifier', 'Data type': 'STRING', 'Priority': 1})
-new_sample_row.insert(1, {'Variable name cBioportal':'Patient identifier', 'Variable description': 'Patient identifier', 'Data type': 'STRING', 'Priority': 1})
-df_annotated_samples = pd.concat([pd.DataFrame(new_sample_row), df_annotated_samples], ignore_index=True)
-new_patient_row = []
-new_patient_row.insert(0, {'Variable name cBioportal':'Patient identifier', 'Variable description': 'Patient identifier', 'Data type': 'STRING', 'Priority': 1})
-df_annotated_patients =  pd.concat([pd.DataFrame(new_patient_row), df_annotated_patients], ignore_index=True)
-
-clinical_data_string = ''
-sample_data_string = ''
-amount_of_variables_samples = len(df_annotated_samples.index)
-amount_of_variables_patients = len(df_annotated_patients.index)
-
-for column in df_annotated_samples.columns.values:
-    sample_data_string += '#'
-    c = 0
-    for variable in df_annotated_samples[column]:
-        c+=1
-        if amount_of_variables_samples != c:
-            sample_data_string += str(variable) + '\t'
-        else:
-            sample_data_string += str(variable) + '\n'
-
-
-for column in df_annotated_patients.columns.values:
-    clinical_data_string += '#'
-    c = 0
-    for variable in df_annotated_patients[column]:
-        c+=1
-        if amount_of_variables_patients != c:
-            clinical_data_string += str(variable) + '\t'
-        else:
-            clinical_data_string += str(variable) + '\n'
-
-
-data_clinical_sample.write(sample_data_string)
-data_clinical.write(clinical_data_string)
-
-
-sample_df = df[df.columns[df.columns.isin(sample_vlist)]]
-sample_df.insert(loc = 0, column = 'SAMPLE_ID', value = sample_id_list)
-patient_df = df[df.columns[df.columns.isin(patient_vlist)]]
-
-patient_df = patient_df.drop_duplicates(subset=['PATIENT_ID'])
-
-sdata = io.StringIO()
-sample_df.to_csv(sdata, sep='\t', index=False, na_rep= "")
-
-pdata = io.StringIO()
-patient_df.to_csv(pdata, sep='\t', index=False, na_rep= "")
-
- 
-data_clinical.write(pdata.getvalue())
-data_clinical_sample.write(sdata.getvalue())
-
-
+f.close()
 data_clinical.close()
 meta_study.close()
 meta_clinical_patient.close()
@@ -272,3 +261,4 @@ meta_clinical_sample.close()
 data_clinical_sample.close()
 data_type_cancer.close()
 meta_type_cancer.close()
+
