@@ -7,12 +7,14 @@ This script is made to convert existing clinical datasets to the clinical data f
 * The "-s" flag is the sheet name of the the Excel data sheet which is especially usefull when using clinical data files with multiple sheets.
 * The "-a" flag is the name of the annotation file, the first time the script is ran for a new dataset, this flag can be left empty like this: `./generate_metadata.py -i 'Master_TMA_analyses.xlsx' -s 'The Mamma Database 2000-2013 FI' -a`. 
 
-* The script will generate an annotation file, usage is described below. The data folder contains the in- and output folder. The script expects an Excel file in the "input" folder and write the data files with metadata to the "output" folder.
+* The script will generate an annotation file, usage is described below. The data folder contains the in- and output folder. The script expects an Excel file in the "input" folder and writes the data files with metadata to the "output" folder.
 
 ### Annotation file
 
 #### Formatting
-* The script expects a clinical Excel datafile with the first row as variable names. Because cBioportal has special treatment for certain variables these variables can be formatted and used by the script. This script assumes every patient has one corresponding sample. 
+* The script expects a clinical Excel datafile with the first row as variable names. Because cBioportal has special treatment for certain variables these variables can be formatted and used by the script. 
+
+* 2This script assumes every patient has one corresponding sample. 
 
 * cBioportal needs a unique (non-dupiclate) sample and patient ID. This script regcognizes the patient_ID variable by a "\*" placed in front of the variable in the dataset. 
 
@@ -32,7 +34,8 @@ The Annotation sheet has 6 columns:
 * Datatype:                   Either "STRING" or "NUMBER" this has to be "STRING" for letters and "NUMBER" for numbers.
 * Priority:                   The priority from 1-9 with 1 being top-priority, values with a high priority will be favored variables shown in the generated cBioportal dashboard.
 * sample/patient:             This value is either "patient" or "sample" and will decide if the value is under patient data or sample data.
-* Yes/No:                     The script has a function to transform 0 and 1 values to yes(1) and no(0) this gives better visualizations in cBioportal. If this is required fill in a "TRUE" and when a value doesn't need transformation fill in false. Note that the Datatype has to be STRING when this "TRUE" is used.
+* Yes/No:                     The script has a function to transform 0 and 1 values to yes(1) and no(0) this gives better visualizations in cBioportal. If this is required fill in a "TRUE" and when a value doesn't need transformation fill in false. 
+* Note that the Datatype has to be STRING when this "TRUE" is used.
 
 The Meta study sheet has 2 columns "Variable" and "Description", the "Variables" column is filled in with:
 * type of cancer:             Here a cancer type is required, for example "IDC", "mixed" for multiple cancer types.
