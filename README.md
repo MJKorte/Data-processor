@@ -51,5 +51,7 @@ The Meta study sheet has 2 columns "Variable" and "Description", the "Variables"
 
 * cBioportal has several other variable names which are treated in a special way: OS_STATUS, OS_MONTHS, DFS_STATUS, DFS_MONTHS, GENDER or SEX, AGE and TUMOR_SITE. When these variables are present in the datafile you want to convert be sure to change the variable names to exactly match the names mentioned above. 
 
+* OS_STATUS and DFS_STATUS are expected to be either 0 or 1. Gender is 1 for male and 2 for female.
+
 
 * Otherwise it will convert the dataset to several text files containing data and metadata. If the script is finished the output folder will contain the study files which can be used directly by the MetaImport.py script [provided by cBioportal.](https://docs.cbioportal.org/5.1-data-loading/data-loading/using-the-metaimport-script)
