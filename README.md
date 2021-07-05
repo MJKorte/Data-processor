@@ -5,7 +5,7 @@ This script is made to convert existing clinical datasets to the clinical data f
 * The generate_metadata.py script works by using terminal input. Terminal input looks like this: `./generate_metadata.py -i 'your_dataset_file.xlsx' -s 'sheet_name' -a 'Your_annotation_file.xlsx'`
 * The "-i" flag is the name of the Excel clinical data file which needs to be placed in the in the /data/input folder included in this repository.
 * The "-s" flag is the sheet name of the the Excel data sheet which is especially usefull when using clinical data files with multiple sheets.
-* The "-a" flag is the name of the annotation file, the first time the script is ran for a new dataset, this flag can be left empty like this: `./generate_metadata.py -i 'Master_TMA_analyses.xlsx' -s 'The Mamma Database 2000-2013 FI' -a`. 
+* The "-a" flag is the name of the annotation file, the first time the script is ran for a new dataset, this flag can be left empty like this: `./generate_metadata.py -i 'your_dataset_file.xlsx' -s 'sheet_name' -a`. 
 
 * The script will generate an annotation file, usage is described below. The data folder contains the in- and output folder. The script expects an Excel file in the "input" folder and writes the data files with metadata to the "output" folder.
 
